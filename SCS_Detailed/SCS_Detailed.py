@@ -4,12 +4,16 @@ import zoneinfo
 from collections.abc import Iterable
 from datetime import tzinfo
 from pathlib import Path
-from typing import Final, final
+from typing import Final, cast, final
 
 import ibis
+import xlsxwriter
 from ibis import Table
 from ibis.backends import BaseBackend
 from msgspec import Struct
+from xlsxwriter import Workbook
+from xlsxwriter.format import Format
+from xlsxwriter.worksheet import Worksheet
 
 
 @final
@@ -47,6 +51,15 @@ class _Constants(Struct, frozen=True, kw_only=True):
     )
     RES: Final[frozenset[str]] = frozenset(
         ["INDEPENDENT RESIDENTIAL SERVICE", "RESIDENTIAL NON-BILLABLE"]
+    )
+
+    DEPARTMENT_SHORT_NAMES: Iterable[str] = ("CM", "SE", "RES", "OUT", "OLD")
+    DEPARTMENT_FULL_NAMES: Iterable[str] = (
+        "Case Mangement",
+        "Supportive Employement",
+        "Residential",
+        "Outpatient",
+        "Older than 12 Months",
     )
 
     @final
@@ -116,6 +129,68 @@ def deduplicate_clients(table: Table, *filter: Table) -> Table:
     return table.drop("app", "date").distinct()
 
 
+def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
+    summary: Worksheet = wb.add_worksheet("Summary")
+    percent_format: Format = wb.add_format({"num_format": "0.00%"})
+
+    summary.merge_range("A1:C1", "SCS - Detailed - Summary")
+
+    data: list[tuple[str, int, float]] = []
+
+    total: int = 0
+    for department in departments:
+        total += department.count().execute()
+
+    for i, department in enumerate(departments):
+        data.append(
+            (
+                list(CONST.DEPARTMENT_FULL_NAMES)[i],
+                num := cast(int, department.count().execute()),
+                num / total,
+            )
+        )
+
+    print(data)
+
+    summary.add_table(
+        1,
+        0,
+        len(data) + 2,
+        len(data[0]) - 1,
+        {
+            "data": data,
+            "name": "Summary",
+            "first_column": True,
+            "total_row": True,
+            "style": "Table Style Medium 5",
+            "columns": [
+                {"header": "Department", "total_string": "Totals:"},
+                {"header": "Count", "total_function": "sum"},
+                {
+                    "header": "Percentage",
+                    "total_function": "sum",
+                    "format": percent_format,
+                },
+            ],
+        },
+    )
+
+    summary.autofit()
+
+
+def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
+    pass
+
+
+def excelize_tables(*tables) -> None:
+    wb: Workbook = xlsxwriter.Workbook(
+        CONST.OUTPUT_DIR / (CONST.FILE_NAME + CONST.START_TIME + ".xlsx")
+    )
+    make_summary_page(wb, tables)
+    make_department_pages(wb, tables)
+    wb.close()
+
+
 def main() -> None:
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
@@ -134,6 +209,8 @@ def main() -> None:
     res = deduplicate_clients(res, cm, se)
     out = deduplicate_clients(out, cm, se, res)
     old = deduplicate_clients(old, cm, se, res, out)
+
+    excelize_tables(cm, se, res, out, old)
 
 
 if __name__ == "__main__":

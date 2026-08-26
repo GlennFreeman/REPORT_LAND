@@ -51,7 +51,7 @@ CONST: Final[_Constants] = _Constants()
 def initialize_ibis() -> BaseBackend:
     ibis.options.interactive = True
     ibis.options.verbose = True
-    return ibis.polars.connect()
+    return ibis.duckdb.connect()
 
 
 def ingest_latest_input_file(con: BaseBackend) -> Table:
@@ -59,8 +59,15 @@ def ingest_latest_input_file(con: BaseBackend) -> Table:
         (f for f in CONST.INPUT_DIR.iterdir() if f.is_file()),
         key=lambda x: x.stat().st_mtime_ns,
     )
-    table: Table = con.read_csv(most_recent_file)
-
+    table: Table = con.read_csv(most_recent_file, encoding="utf-16", ignore_errors=True)
+    table = table.drop(
+        "Patient Primary Carrier Name", "Patient Status Description"
+    ).rename(
+        cid="Patient Chart Number",
+        name="Patient Name (Last, First)",
+        app="Appointment Type",
+        date="Appointment Start Date",
+    )
     return table
 
 

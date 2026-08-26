@@ -140,6 +140,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     title: str = "State Contracted Services Detailed Report"
     company: str = "ONE Community Health Solution"
     summary.set_header(f"&L{time}&C{title}&R{company}")
+    summary.set_footer("&R&P of &N")
 
     percent_format: Format = wb.add_format({"num_format": "0.00%"})
     title_format: Format = wb.add_format(
@@ -186,11 +187,44 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     )
 
     summary.set_column("D:XFD", None, None, {"hidden": True})
+    summary.set_tab_color("green")
     summary.autofit()
 
 
 def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
-    pass
+    for i, department in enumerate(departments):
+        sheet: Worksheet = wb.add_worksheet(list(CONST.DEPARTMENT_SHORT_NAMES)[i])
+        sheet.set_page_view(view=1)
+        sheet.center_horizontally()
+        sheet.set_default_row(hide_unused_rows=True)
+
+        time: str = f"Generated at: {datetime.datetime.now(CONST.TIMEZONE).strftime('%Y/%m/%d %H:%M')}"
+        title: str = "State Contracted Services Detailed Report"
+        company: str = "ONE Community Health Solution"
+        sheet.set_header(f"&L{time}&C{title}&R{company}")
+        sheet.set_footer("&R&P of &N")
+
+        title_format = wb.formats[1]
+
+        sheet.merge_range("A1:B1", list(CONST.DEPARTMENT_FULL_NAMES)[i], title_format)
+        sheet.add_table(
+            1,
+            0,
+            department.count().execute() + 2,
+            1,
+            {
+                "data": department.to_polars().iter_rows(),
+                "total_row": True,
+                "style": "Table Style Medium 5",
+                "columns": [
+                    {"header": "CID", "total_string": "Totals:"},
+                    {"header": "Last Name, First Name", "total_function": "count"},
+                ],
+            },
+        )
+
+        sheet.set_column("C:XFD", None, None, {"hidden": True})
+        sheet.autofit()
 
 
 def excelize_tables(*tables) -> None:

@@ -110,7 +110,7 @@ def get_appointment_types(table: Table) -> Iterable[str]:
         .distinct()
         .order_by("app")
         .to_pyarrow()
-        .to_pydict()["app"]
+        .to_pydict()["app"]  # produces a nicer output than to_polars.iter_rows
     )
 
 

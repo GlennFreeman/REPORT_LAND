@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import time
 import zoneinfo
 from collections.abc import Iterable
 from datetime import tzinfo
@@ -260,4 +261,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    start_time: float = time.monotonic()
     main()
+    print(f"Time elapsed: {(time.monotonic() - start_time):0.4f}s")

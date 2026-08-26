@@ -155,7 +155,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     summary.add_table(
         1,
         0,
-        len(data) + 2,
+        len(data) + 2,  # +1 for offset, +2 for header and total
         len(data[0]) - 1,
         {
             "data": data,

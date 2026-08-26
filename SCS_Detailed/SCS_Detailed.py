@@ -100,6 +100,15 @@ def get_appointment_types(table: Table) -> Iterable[str]:
     )
 
 
+def split_old(table: Table) -> tuple[Table, Table]:
+    old = table.filter(table["date"] > (ibis.now() - ibis.interval(years=1)))
+    return (old, table.difference(old))
+
+
+def split_department(cm_se_res_out, CONST.CM) -> tuple[Table, Table]: pass
+
+
+
 def main() -> None:
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
@@ -107,6 +116,12 @@ def main() -> None:
     # Use to get types manually to add to CONST CM SE RES
     # app_types: Iterable[str] = get_appointment_types(table)
     # print(app_types)
+    (old, cm_se_res_out) = split_old(table)
+    print(cm_se_res_out)
+    print(old)
+    (cm, se_res_out) = split_department(cm_se_res_out, CONST.CM)
+    # (se, res_out) = split_department(se_res_out)
+    # (res, out) = split_department(res_out)
 
 
 if __name__ == "__main__":

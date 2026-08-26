@@ -1,3 +1,4 @@
+from re import S
 import datetime
 import pathlib
 import zoneinfo
@@ -31,6 +32,15 @@ class _Constants(Struct, frozen=True, kw_only=True):
     INPUT_DIR: Final[Path] = DIRECTORY / "_1_INPUTS"
     OUTPUT_DIR: Final[Path] = DIRECTORY / "_2_OUTPUTS"
 
+    DEPARTMENT_SHORT_NAMES: Iterable[str] = ("CM", "SE", "RES", "OUT", "OLD")
+    DEPARTMENT_FULL_NAMES: Iterable[str] = (
+        "Case Mangement",
+        "Supportive Employement",
+        "Residential",
+        "Outpatient",
+        "Older than 12 Months",
+    )
+
     CM: Final[frozenset[str]] = frozenset(
         [
             "CASE MANAGEMENT",
@@ -51,15 +61,6 @@ class _Constants(Struct, frozen=True, kw_only=True):
     )
     RES: Final[frozenset[str]] = frozenset(
         ["INDEPENDENT RESIDENTIAL SERVICE", "RESIDENTIAL NON-BILLABLE"]
-    )
-
-    DEPARTMENT_SHORT_NAMES: Iterable[str] = ("CM", "SE", "RES", "OUT", "OLD")
-    DEPARTMENT_FULL_NAMES: Iterable[str] = (
-        "Case Mangement",
-        "Supportive Employement",
-        "Residential",
-        "Outpatient",
-        "Older than 12 Months",
     )
 
     @final
@@ -114,7 +115,7 @@ def get_appointment_types(table: Table) -> Iterable[str]:
 
 
 def split_old(table: Table) -> tuple[Table, Table]:
-    old = table.filter(table["date"] > (ibis.now() - ibis.interval(years=1)))
+    old: Table = table.filter(table["date"] > (ibis.now() - ibis.interval(years=1)))
     return (old, table.difference(old))
 
 
@@ -123,20 +124,31 @@ def split_department(table: Table, items: frozenset[str]) -> tuple[Table, Table]
     return (department, table.difference(department))
 
 
-def deduplicate_clients(table: Table, *filter: Table) -> Table:
-    for f in filter:
-        table = table.filter(table.name.notin(f.name))
+def deduplicate_clients(table: Table, *filter_tables: Table) -> Table:
+    for ft in filter_tables:
+        table = table.filter(table.name.notin(ft.name))
     return table.drop("app", "date").distinct()
 
 
 def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     summary: Worksheet = wb.add_worksheet("Summary")
-    percent_format: Format = wb.add_format({"num_format": "0.00%"})
+    summary.set_page_view(view=1)
+    summary.center_horizontally()
+    summary.set_default_row(hide_unused_rows=True)
 
-    summary.merge_range("A1:C1", "SCS - Detailed - Summary")
+    time: str = f"Generated at: {datetime.datetime.now(CONST.TIMEZONE).strftime('%Y/%m/%d %H:%M')}"
+    title: str = "State Contracted Services Detailed Report"
+    company: str = "ONE Community Health Solution"
+    summary.set_header(f"&L{time}&C{title}&R{company}")
+
+    percent_format: Format = wb.add_format({"num_format": "0.00%"})
+    title_format: Format = wb.add_format(
+        {"bold": True, "align": "center", "valign": "center"}
+    )
+
+    summary.merge_range("A1:C1", "SCS - Summary", title_format)
 
     data: list[tuple[str, int, float]] = []
-
     total: int = 0
     for department in departments:
         total += department.count().execute()
@@ -149,8 +161,6 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
                 num / total,
             )
         )
-
-    print(data)
 
     summary.add_table(
         1,
@@ -175,6 +185,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
         },
     )
 
+    summary.set_column("D:XFD", None, None, {"hidden": True})
     summary.autofit()
 
 

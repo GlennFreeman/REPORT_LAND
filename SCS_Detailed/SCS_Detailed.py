@@ -204,7 +204,9 @@ def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
         sheet.set_header(f"&L{time}&C{title}&R{company}")
         sheet.set_footer("&R&P of &N")
 
-        title_format = wb.formats[1]
+        title_format: Format = wb.add_format(
+            {"bold": True, "align": "center", "valign": "center"}
+        )
 
         sheet.merge_range("A1:B1", list(CONST.DEPARTMENT_FULL_NAMES)[i], title_format)
         sheet.add_table(

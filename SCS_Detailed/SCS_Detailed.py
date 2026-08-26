@@ -110,6 +110,12 @@ def split_department(table: Table, items: frozenset[str]) -> tuple[Table, Table]
     return (department, table.difference(department))
 
 
+def deduplicate_clients(table: Table, *filter: Table) -> Table:
+    for f in filter:
+        table = table.filter(table.name.notin(f.name))
+    return table.drop("app", "date").distinct()
+
+
 def main() -> None:
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
@@ -122,6 +128,12 @@ def main() -> None:
     (cm, se_res_out) = split_department(cm_se_res_out, CONST.CM)
     (se, res_out) = split_department(se_res_out, CONST.SE)
     (res, out) = split_department(res_out, CONST.RES)
+
+    cm = deduplicate_clients(cm)
+    se = deduplicate_clients(se, cm)
+    res = deduplicate_clients(res, cm, se)
+    out = deduplicate_clients(out, cm, se, res)
+    old = deduplicate_clients(old, cm, se, res, out)
 
 
 if __name__ == "__main__":

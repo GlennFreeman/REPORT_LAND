@@ -2,7 +2,7 @@ import datetime
 import pathlib
 import time
 import zoneinfo
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import tzinfo
 from pathlib import Path
 from typing import Final, cast, final
@@ -119,7 +119,7 @@ def split_old(table: Table) -> tuple[Table, Table]:
     return (old, table.difference(old))
 
 
-def split_department(table: Table, items: frozenset[str]) -> tuple[Table, Table]:
+def split_department(table: Table, items: Collection[str]) -> tuple[Table, Table]:
     department: Table = table.filter(table.app.isin(items))
     return (department, table.difference(department))
 

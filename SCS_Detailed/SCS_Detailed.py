@@ -105,23 +105,23 @@ def split_old(table: Table) -> tuple[Table, Table]:
     return (old, table.difference(old))
 
 
-def split_department(cm_se_res_out, CONST.CM) -> tuple[Table, Table]: pass
-
+def split_department(table: Table, items: frozenset[str]) -> tuple[Table, Table]:
+    department: Table = table.filter(table.app.isin(items))
+    return (department, table.difference(department))
 
 
 def main() -> None:
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
-    print(table)
+
     # Use to get types manually to add to CONST CM SE RES
     # app_types: Iterable[str] = get_appointment_types(table)
     # print(app_types)
+
     (old, cm_se_res_out) = split_old(table)
-    print(cm_se_res_out)
-    print(old)
     (cm, se_res_out) = split_department(cm_se_res_out, CONST.CM)
-    # (se, res_out) = split_department(se_res_out)
-    # (res, out) = split_department(res_out)
+    (se, res_out) = split_department(se_res_out, CONST.SE)
+    (res, out) = split_department(res_out, CONST.RES)
 
 
 if __name__ == "__main__":

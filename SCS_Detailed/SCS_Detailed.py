@@ -194,7 +194,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
 def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
     for i, department in enumerate(departments):
         sheet: Worksheet = wb.add_worksheet(list(CONST.DEPARTMENT_SHORT_NAMES)[i])
-        sheet.set_page_view(view=1)
+        # sheet.set_page_view(view=1)
         sheet.center_horizontally()
         sheet.set_default_row(hide_unused_rows=True)
 

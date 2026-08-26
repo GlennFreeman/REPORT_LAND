@@ -18,7 +18,7 @@ class _Constants(Struct, frozen=True, kw_only=True):
         else zoneinfo.ZoneInfo("America/New_York")
     )
     START_TIME: Final[str] = datetime.datetime.now(TIMEZONE).strftime(
-        "📆⠀%Y／%m／%d⠀⏰⠀%H：%M：%S"
+        "📆 %Y／%m／%d ⏰ %H：%M：%S"
     )
 
     @final

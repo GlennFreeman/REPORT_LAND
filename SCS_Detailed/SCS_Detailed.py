@@ -1,6 +1,7 @@
 import datetime
 import pathlib
 import zoneinfo
+from collections.abc import Iterable
 from datetime import tzinfo
 from pathlib import Path
 from typing import Final, final
@@ -26,9 +27,27 @@ class _Constants(Struct, frozen=True, kw_only=True):
     INPUT_DIR: Final[Path] = DIRECTORY / "_1_INPUTS"
     OUTPUT_DIR: Final[Path] = DIRECTORY / "_2_OUTPUTS"
 
-    CM: Final[frozenset[str]] = frozenset(["pass"])
-    SE: Final[frozenset[str]] = frozenset(["pass"])
-    RES: Final[frozenset[str]] = frozenset(["pass"])
+    CM: Final[frozenset[str]] = frozenset(
+        [
+            "CASE MANAGEMENT",
+            "CASE MANAGEMENT COLLATERAL",
+            "CASE MANAGEMENT COLLATERAL, PSR INDIVIDUAL",
+            "CASE MANAGEMENT, CASE MANAGEMENT COLLATERAL",
+            "CASE MANAGEMENT, PSR INDIVIDUAL",
+            "CTP JAIL",
+            "PSR INDIVIDUAL",
+        ]
+    )
+    SE: Final[frozenset[str]] = frozenset(
+        [
+            "SE JOB DEVELOPMENT",
+            "SE JOB DEVELOPMENT, SE JOB PLACEMENT",
+            "SE JOB PLACEMENT",
+        ]
+    )
+    RES: Final[frozenset[str]] = frozenset(
+        ["INDEPENDENT RESIDENTIAL SERVICE", "RESIDENTIAL NON-BILLABLE"]
+    )
 
     @final
     def __post_init__(self):
@@ -50,7 +69,7 @@ CONST: Final[_Constants] = _Constants()
 
 def initialize_ibis() -> BaseBackend:
     ibis.options.interactive = True
-    ibis.options.verbose = True
+    ibis.options.verbose = False
     return ibis.duckdb.connect()
 
 
@@ -71,11 +90,23 @@ def ingest_latest_input_file(con: BaseBackend) -> Table:
     return table
 
 
+def get_appointment_types(table: Table) -> Iterable[str]:
+    return (
+        table.drop("cid", "name", "date")
+        .distinct()
+        .order_by("app")
+        .to_pyarrow()
+        .to_pydict()["app"]
+    )
+
+
 def main() -> None:
-    print(CONST.START_TIME)
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
     print(table)
+    # Use to get types manually to add to CONST CM SE RES
+    # app_types: Iterable[str] = get_appointment_types(table)
+    # print(app_types)
 
 
 if __name__ == "__main__":

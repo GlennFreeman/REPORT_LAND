@@ -31,8 +31,8 @@ class _Constants(Struct, frozen=True, kw_only=True):
     INPUT_DIR: Final[Path] = DIRECTORY / "_1_INPUTS"
     OUTPUT_DIR: Final[Path] = DIRECTORY / "_2_OUTPUTS"
 
-    DEPARTMENT_SHORT_NAMES: Iterable[str] = ("CM", "SE", "RES", "OUT", "OLD")
-    DEPARTMENT_FULL_NAMES: Iterable[str] = (
+    DEPARTMENT_SHORT_NAMES: Final[Iterable[str]] = ("CM", "SE", "RES", "OUT", "OLD")
+    DEPARTMENT_FULL_NAMES: Final[Iterable[str]] = (
         "Case Mangement",
         "Supportive Employement",
         "Residential",
@@ -158,7 +158,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
             (
                 list(CONST.DEPARTMENT_FULL_NAMES)[i],
                 num := cast(int, department.count().execute()),
-                num / total,
+                round(num / total, 2),  # pre round to make autofit behave
             )
         )
 
@@ -241,7 +241,7 @@ def main() -> None:
     con: BaseBackend = initialize_ibis()
     table: Table = ingest_latest_input_file(con)
 
-    # Use to get types manually to add to CONST CM SE RES
+    # Use to get types manually to add to CONST.CM, CONST.SE, CONST.RES
     # app_types: Iterable[str] = get_appointment_types(table)
     # print(app_types)
 

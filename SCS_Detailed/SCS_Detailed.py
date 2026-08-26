@@ -213,7 +213,7 @@ def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
             department.count().execute() + 2,
             1,
             {
-                "data": department.to_polars().iter_rows(),
+                "data": list(department.to_polars().iter_rows()),
                 "total_row": True,
                 "style": "Table Style Medium 5",
                 "columns": [

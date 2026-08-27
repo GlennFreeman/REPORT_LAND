@@ -212,7 +212,7 @@ def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
         sheet.add_table(
             1,
             0,
-            department.count().execute() + 2,
+            department.count().execute() + 2,  # +1 for offset, +2 for header and total
             1,
             {
                 "data": list(department.to_polars().iter_rows()),

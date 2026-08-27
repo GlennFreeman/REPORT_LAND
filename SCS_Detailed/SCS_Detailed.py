@@ -136,7 +136,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     summary.center_horizontally()
     summary.set_default_row(hide_unused_rows=True)
 
-    time: str = f"Generated at: {datetime.datetime.now(CONST.TIMEZONE).strftime('%Y/%m/%d %H:%M')}"
+    time: str = "Generated at: &D &T"
     title: str = "State Contracted Services Detailed Report"
     company: str = "ONE Community Health Solution"
     summary.set_header(f"&L{time}&C{title}&R{company}")

@@ -115,7 +115,7 @@ def get_appointment_types(table: Table) -> Iterable[str]:
 
 
 def split_old(table: Table) -> tuple[Table, Table]:
-    old: Table = table.filter(table["date"] > (ibis.now() - ibis.interval(years=1)))
+    old: Table = table.filter(table.date > (ibis.now() - ibis.interval(years=1)))
     return (old, table.difference(old))
 
 

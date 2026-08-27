@@ -198,7 +198,7 @@ def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
         sheet.center_horizontally()
         sheet.set_default_row(hide_unused_rows=True)
 
-        time: str = f"Generated at: {datetime.datetime.now(CONST.TIMEZONE).strftime('%Y/%m/%d %H:%M')}"
+        time: str = "Generated at: &D &T"
         title: str = "State Contracted Services Detailed Report"
         company: str = "ONE Community Health Solution"
         sheet.set_header(f"&L{time}&C{title}&R{company}")

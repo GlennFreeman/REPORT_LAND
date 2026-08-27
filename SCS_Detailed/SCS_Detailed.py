@@ -159,7 +159,8 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
             (
                 list(CONST.DEPARTMENT_FULL_NAMES)[i],
                 num := cast(int, department.count().execute()),
-                round(num / total, 2),  # pre round to make autofit behave
+                # pre round to make autofit behave, 4 digits because its a percentage ie 11.11
+                round(num / total, 4),
             )
         )
 

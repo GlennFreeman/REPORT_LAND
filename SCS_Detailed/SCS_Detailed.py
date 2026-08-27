@@ -82,7 +82,7 @@ CONST: Final[_Constants] = _Constants()
 
 
 def initialize_ibis() -> BaseBackend:
-    ibis.options.interactive = True
+    ibis.options.interactive = False
     ibis.options.verbose = False
     return ibis.duckdb.connect()
 

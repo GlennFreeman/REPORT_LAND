@@ -69,14 +69,42 @@ def initialize_ibis() -> BaseBackend:
     return ibis.duckdb.connect()
 
 
-def ingest_poe(con: BaseBackend, file: Path):
+def ingest_poe(con: BaseBackend, file: Path) -> Table:
     t: Table = (
         con.read_csv(file, ignore_errors=True)
         .drop("textbox11", "txtHeaderr0c0", "textbox13")
-        .rename(name="txtHeaderr0c1", date="textbox14")
+        .rename(name="txtHeaderr0c1", intake_date="textbox14")
     )
     t = t.mutate(name=t.name.replace("Patient Name: ", ""))
-    t = t.filter(~t.name.upper().contains("TEST"))
+    t = t.filter(~t.name.upper().contains("TEST")).order_by("intake_date")
+
+    return t
+
+
+def ingest_visits(con: BaseBackend, file) -> Table:
+    t: Table = (
+        con.read_csv(file, encoding="utf-16", ignore_errors=True)
+        .drop("Appointment Status", "Appointment Reason", "Visit Number")
+        .rename(
+            name="Patient Name (Last, First)",
+            app_date="Appointment Start Date",
+            app_type="Appointment Type",
+        )
+        .order_by("app_date")
+    )
+
+    return t
+
+
+def join_poe_vists(table1: Table, table2: Table) -> Table:
+
+    left = table1.mutate(join_name=table1.name.upper().replace(" ", ""))
+
+    right = table2.mutate(join_name=table2.name.upper().replace(" ", ""))
+
+    t: Table = left.left_join(right, left.join_name == right.join_name).select(
+        table1.name, table1.intake_date, table2.app_date, table2.app_type
+    )
 
     return t
 
@@ -86,8 +114,15 @@ def main() -> None:
     point_of_entry: Table = ingest_poe(
         con, most_recent_file(CONST.INPUT_DIR, "PCD-Initial")
     )
-
-    print(point_of_entry)
+    patient_visits: Table = ingest_visits(
+        con, most_recent_file(CONST.INPUT_DIR, "KPI-Patient-Visits")
+    )
+    print(point_of_entry.count())
+    print(patient_visits.count())
+    table: Table = join_poe_vists(point_of_entry, patient_visits)
+    print(table)
+    print(table.count())
+    table.to_csv(CONST.OUTPUT_DIR / CONST.START_TIME)
 
 
 if __name__ == "__main__":

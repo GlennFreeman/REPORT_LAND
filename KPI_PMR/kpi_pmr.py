@@ -5,6 +5,9 @@ from datetime import tzinfo
 from pathlib import Path
 from typing import Final, final
 
+import ibis
+from ibis.backends import BaseBackend
+from ibis.expr.api import Table
 from msgspec import Struct
 
 
@@ -45,12 +48,12 @@ def most_recent_file(dir: Path, stem: str | Path | None = None) -> Path:
     match stem:
         case str():
             return max(
-                dir.glob(f"*{stem}"),
+                dir.glob(f"*{stem}*"),
                 key=lambda x: x.stat().st_mtime_ns,
             )
         case Path():
             return max(
-                dir.glob(f"*{stem.stem}"),
+                dir.glob(f"*{stem.stem}*"),
                 key=lambda x: x.stat().st_mtime_ns,
             )
         case _:
@@ -60,8 +63,31 @@ def most_recent_file(dir: Path, stem: str | Path | None = None) -> Path:
             )
 
 
+def initialize_ibis() -> BaseBackend:
+    ibis.options.interactive = True
+    ibis.options.verbose = False
+    return ibis.duckdb.connect()
+
+
+def ingest_poe(con: BaseBackend, file: Path):
+    t: Table = (
+        con.read_csv(file, ignore_errors=True)
+        .drop("textbox11", "txtHeaderr0c0", "textbox13")
+        .rename(name="txtHeaderr0c1", date="textbox14")
+    )
+    t = t.mutate(name=t.name.replace("Patient Name: ", ""))
+    t = t.filter(~t.name.upper().contains("TEST"))
+
+    return t
+
+
 def main() -> None:
-    pass
+    con: BaseBackend = initialize_ibis()
+    point_of_entry: Table = ingest_poe(
+        con, most_recent_file(CONST.INPUT_DIR, "PCD-Initial")
+    )
+
+    print(point_of_entry)
 
 
 if __name__ == "__main__":

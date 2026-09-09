@@ -1,9 +1,10 @@
 import datetime
 import pathlib
 import zoneinfo
+from collections.abc import Iterable
 from datetime import tzinfo
 from pathlib import Path
-from typing import Final, final
+from typing import Final, cast, final
 
 import ibis
 from ibis.backends import BaseBackend
@@ -25,6 +26,8 @@ class _Constants(Struct, frozen=True, kw_only=True):
     LOG_FILE: Final[Path] = DIRECTORY / "_0_LOGS" / f"🗐{START_TIME}.log"
     INPUT_DIR: Final[Path] = DIRECTORY / "_1_INPUTS"
     OUTPUT_DIR: Final[Path] = DIRECTORY / "_2_OUTPUTS"
+
+    KPI1_1: Final[Iterable[str]] = ("ADULT BHA", "SERVICE PLAN DEVELOPMENT")
 
     @final
     def __post_init__(self):
@@ -102,11 +105,24 @@ def join_poe_vists(table1: Table, table2: Table) -> Table:
 
     right = table2.mutate(join_name=table2.name.upper().replace(" ", ""))
 
-    t: Table = left.left_join(right, left.join_name == right.join_name).select(
-        table1.name, table1.intake_date, table2.app_date, table2.app_type
+    t: Table = (
+        left.left_join(right, left.join_name == right.join_name)
+        .select(table1.name, table1.intake_date, table2.app_date, table2.app_type)
+        .order_by("app_date", "intake_date")
     )
 
     return t
+
+
+def filter_combined_kpi1_1(table: Table) -> Table:
+    table = table.filter(table.app_date >= table.intake_date).filter(
+        table.app_type.isin(CONST.KPI1_1)
+    )
+    table = table.order_by(table.intake_date).filter(
+        (table.intake_date + ibis.interval(days=7)) >= table.app_date
+    )
+
+    return table
 
 
 def main() -> None:
@@ -119,10 +135,14 @@ def main() -> None:
     )
     print(point_of_entry.count())
     print(patient_visits.count())
-    table: Table = join_poe_vists(point_of_entry, patient_visits)
-    print(table)
-    print(table.count())
-    table.to_csv(CONST.OUTPUT_DIR / CONST.START_TIME)
+    combined: Table = join_poe_vists(point_of_entry, patient_visits)
+    print(combined.count())
+    total: int = cast(int, combined.distinct(on=combined.name).count().execute())
+    print(total)
+    kpi1_1: Table = filter_combined_kpi1_1(combined)
+    print(kpi1_1.count())
+    print(kpi1_1)
+    kpi1_1.to_csv(CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t")
 
 
 if __name__ == "__main__":

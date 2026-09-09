@@ -27,7 +27,19 @@ class _Constants(Struct, frozen=True, kw_only=True):
     INPUT_DIR: Final[Path] = DIRECTORY / "_1_INPUTS"
     OUTPUT_DIR: Final[Path] = DIRECTORY / "_2_OUTPUTS"
 
-    KPI1_1: Final[Iterable[str]] = ("ADULT BHA", "SERVICE PLAN DEVELOPMENT")
+    KPI1_1: Final[Iterable[str]] = (
+        "ADULT BHA",
+        "SERVICE PLAN DEVELOPMENT",
+        "INITIAL SERVICE PLAN",
+        "INITIAL ADULT BHA",
+        "INITIAL C&A BHA",
+    )
+    KPI1_2: Final[Iterable[str]] = (
+        "APRN E&M",
+        "INITIAL ADULT MD EVALUATION",
+        "MD C&A EVALUATION",
+        "MD EVALUATION ADULT",
+    )
 
     @final
     def __post_init__(self):
@@ -108,7 +120,7 @@ def join_poe_vists(table1: Table, table2: Table) -> Table:
     t: Table = (
         left.left_join(right, left.join_name == right.join_name)
         .select(table1.name, table1.intake_date, table2.app_date, table2.app_type)
-        .order_by("app_date", "intake_date")
+        .order_by("intake_date", "app_date")
     )
 
     return t
@@ -142,6 +154,7 @@ def main() -> None:
     kpi1_1: Table = filter_combined_kpi1_1(combined)
     print(kpi1_1.count())
     print(kpi1_1)
+    print(f"{(cast(int, kpi1_1.count().execute()) / total):0.2%}")
     kpi1_1.to_csv(CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t")
 
 

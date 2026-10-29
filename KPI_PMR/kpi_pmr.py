@@ -175,7 +175,9 @@ def main() -> None:
     monthly.to_pandas().to_excel(
         CONST.OUTPUT_DIR / f"percentages {CONST.START_TIME}.xlsx", index=False
     )
-    kpi1_1.to_csv(CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t")
+    kpi1_1.mutate(days_diff=kpi1_1.app_date.delta(kpi1_1.intake_date, unit="day")).to_csv(
+        CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t"
+    )
 
 
 if __name__ == "__main__":

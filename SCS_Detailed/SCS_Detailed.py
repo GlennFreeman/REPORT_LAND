@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Final, cast, final
 
 import ibis
+import ibis.expr.types as ir
 import xlsxwriter
-from ibis import Table
 from ibis.backends import BaseBackend
 from msgspec import Struct
 from xlsxwriter import Workbook
@@ -87,12 +87,14 @@ def initialize_ibis() -> BaseBackend:
     return ibis.duckdb.connect()
 
 
-def ingest_latest_input_file(con: BaseBackend) -> Table:
+def ingest_latest_input_file(con: BaseBackend) -> ir.Table:
     most_recent_file: Path = max(
         (f for f in CONST.INPUT_DIR.iterdir() if f.is_file()),
         key=lambda x: x.stat().st_mtime_ns,
     )
-    table: Table = con.read_csv(most_recent_file, encoding="utf-16", ignore_errors=True)
+    table: ir.Table = con.read_csv(
+        most_recent_file, encoding="utf-16", ignore_errors=True
+    )
     table = table.drop(
         "Patient Primary Carrier Name", "Patient Status Description"
     ).rename(
@@ -104,7 +106,7 @@ def ingest_latest_input_file(con: BaseBackend) -> Table:
     return table
 
 
-def get_appointment_types(table: Table) -> Iterable[str]:
+def get_appointment_types(table: ir.Table) -> Iterable[str]:
     return (
         table.drop("cid", "name", "date")
         .distinct()
@@ -114,23 +116,25 @@ def get_appointment_types(table: Table) -> Iterable[str]:
     )
 
 
-def split_old(table: Table) -> tuple[Table, Table]:
-    old: Table = table.filter(table.date > (ibis.now() - ibis.interval(years=1)))
+def split_old(table: ir.Table) -> tuple[ir.Table, ir.Table]:
+    old: ir.Table = table.filter(table.date > (ibis.now() - ibis.interval(years=1)))
     return (old, table.difference(old))
 
 
-def split_department(table: Table, items: Collection[str]) -> tuple[Table, Table]:
-    department: Table = table.filter(table.app.isin(items))
+def split_department(
+    table: ir.Table, items: Collection[str]
+) -> tuple[ir.Table, ir.Table]:
+    department: ir.Table = table.filter(table.app.isin(items))
     return (department, table.difference(department))
 
 
-def deduplicate_clients(table: Table, *filter_tables: Table) -> Table:
+def deduplicate_clients(table: ir.Table, *filter_tables: ir.Table) -> ir.Table:
     for ft in filter_tables:
         table = table.filter(table.name.notin(ft.name))
     return table.drop("app", "date").distinct()
 
 
-def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
+def make_summary_page(wb: Workbook, departments: Iterable[ir.Table]) -> None:
     summary: Worksheet = wb.add_worksheet("Summary")
     summary.set_page_view(view=1)
     summary.center_horizontally()
@@ -192,7 +196,7 @@ def make_summary_page(wb: Workbook, departments: Iterable[Table]) -> None:
     summary.autofit()
 
 
-def make_department_pages(wb: Workbook, departments: Iterable[Table]) -> None:
+def make_department_pages(wb: Workbook, departments: Iterable[ir.Table]) -> None:
     for i, department in enumerate(departments):
         sheet: Worksheet = wb.add_worksheet(list(CONST.DEPARTMENT_SHORT_NAMES)[i])
         # sheet.set_page_view(view=1)
@@ -241,7 +245,7 @@ def excelize_tables(*tables) -> None:
 
 def main() -> None:
     con: BaseBackend = initialize_ibis()
-    table: Table = ingest_latest_input_file(con)
+    table: ir.Table = ingest_latest_input_file(con)
 
     # Use to get types manually to add to CONST.CM, CONST.SE, CONST.RES
     # app_types: Iterable[str] = get_appointment_types(table)

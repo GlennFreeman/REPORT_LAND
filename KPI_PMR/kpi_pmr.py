@@ -137,6 +137,23 @@ def filter_combined_kpi1_1(table: Table) -> Table:
     return table
 
 
+def monthly_percentage(total: Table, hits: Table) -> Table:
+    def per_month(t: Table, col: str) -> Table:
+        return (
+            t.group_by(month=t.intake_date.truncate("M"))
+            .aggregate(**{col: t.name.nunique()})
+        )
+
+    t = per_month(total, "total").left_join(per_month(hits, "met"), "month")
+    return (
+        t.select(
+            "month", "total", met=t.met.fill_null(0)
+        )
+        .mutate(percent=lambda x: (x.met / x.total * 100).round(2))
+        .order_by("month")
+    )
+
+
 def main() -> None:
     con: BaseBackend = initialize_ibis()
     point_of_entry: Table = ingest_poe(
@@ -155,6 +172,9 @@ def main() -> None:
     print(kpi1_1.count())
     print(kpi1_1)
     print(f"{(cast(int, kpi1_1.count().execute()) / total):0.2%}")
+    monthly: Table = monthly_percentage(combined, kpi1_1)
+    print(monthly)
+    monthly.to_pandas().to_excel(CONST.OUTPUT_DIR / f"percentages {CONST.START_TIME}.xlsx", index=False)
     kpi1_1.to_csv(CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t")
 
 

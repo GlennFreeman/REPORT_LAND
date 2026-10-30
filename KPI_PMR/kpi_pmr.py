@@ -127,9 +127,9 @@ def join_poe_vists(table1: Table, table2: Table) -> Table:
     return t
 
 
-def filter_combined_kpi1_1(table: Table) -> Table:
+def filter_combined_kpi(table: Table, app_types: Iterable[str]) -> Table:
     table = table.filter(table.app_date >= table.intake_date).filter(
-        table.app_type.isin(CONST.KPI1_1)
+        table.app_type.isin(app_types)
     )
     table = table.order_by(table.intake_date).filter(
         (table.intake_date + ibis.interval(days=7)) >= table.app_date
@@ -166,7 +166,8 @@ def main() -> None:
     print(combined.count())
     total: int = cast(int, combined.distinct(on=combined.name).count().execute())
     print(total)
-    kpi1_1: Table = filter_combined_kpi1_1(combined)
+    kpi1_1: Table = filter_combined_kpi(combined, CONST.KPI1_1)
+    kpi1_2: Table = filter_combined_kpi(combined, CONST.KPI1_2)
     print(kpi1_1.count())
     print(kpi1_1)
     print(f"{(cast(int, kpi1_1.count().execute()) / total):0.2%}")
@@ -175,9 +176,10 @@ def main() -> None:
     monthly.to_pandas().to_excel(
         CONST.OUTPUT_DIR / f"percentages {CONST.START_TIME}.xlsx", index=False
     )
-    kpi1_1.mutate(days_diff=kpi1_1.app_date.delta(kpi1_1.intake_date, unit="day")).to_csv(
-        CONST.OUTPUT_DIR / f"{CONST.START_TIME}.tsv", sep="\t"
-    )
+    for label, kpi in (("KPI1_1", kpi1_1), ("KPI1_2", kpi1_2)):
+        kpi.mutate(days_diff=kpi.app_date.delta(kpi.intake_date, unit="day")).to_csv(
+            CONST.OUTPUT_DIR / f"{label} {CONST.START_TIME}.tsv", sep="\t"
+        )
 
 
 if __name__ == "__main__":

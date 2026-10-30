@@ -130,7 +130,7 @@ def join_poe_vists(table1: Table, table2: Table) -> Table:
 
 def within_intake_window(table: Table) -> Table:
     return table.filter(table.app_date >= table.intake_date).filter(
-        (table.intake_date + ibis.interval(days=7)) >= table.app_date
+        (table.intake_date + ibis.interval(days=365)) >= table.app_date
     )
 
 
@@ -143,6 +143,17 @@ def filter_out_combined_kpi(combined: Table, *args: Iterable[str]) -> Table:
     table = within_intake_window(combined)
     return table.filter(~table.app_type.isin(list(chain.from_iterable(args)))).order_by(
         table.intake_date
+    )
+
+
+def first_appointment(table: Table) -> Table:
+    # ties on days_diff keep an arbitrary one of the tied rows
+    days_diff = table.app_date.delta(table.intake_date, unit="day")
+    return (
+        table.mutate(rn=ibis.row_number().over(group_by="name", order_by=days_diff))
+        .filter(_.rn == 0)
+        .drop("rn")
+        .order_by("intake_date")
     )
 
 
@@ -175,7 +186,9 @@ def main() -> None:
     total: int = cast(int, combined.distinct(on=combined.name).count().execute())
     print(total)
     kpi1_1: Table = filter_combined_kpi(combined, CONST.KPI1_1)
-    kpi1_2: Table = filter_out_combined_kpi(combined, CONST.KPI1_1, CONST.KPI1_3)
+    kpi1_2: Table = first_appointment(
+        filter_out_combined_kpi(combined, CONST.KPI1_1, CONST.KPI1_3)
+    )
     kpi1_3: Table = filter_combined_kpi(combined, CONST.KPI1_3)
     print(kpi1_1.count())
     print(kpi1_1)

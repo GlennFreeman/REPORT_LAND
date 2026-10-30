@@ -3,6 +3,7 @@ import pathlib
 import zoneinfo
 from collections.abc import Iterable
 from datetime import tzinfo
+from itertools import chain
 from pathlib import Path
 from typing import Final, cast, final
 
@@ -35,7 +36,7 @@ class _Constants(Struct, frozen=True, kw_only=True):
         "INITIAL ADULT BHA",
         "INITIAL C&A BHA",
     )
-    KPI1_2: Final[Iterable[str]] = (
+    KPI1_3: Final[Iterable[str]] = (
         "APRN E&M",
         "INITIAL ADULT MD EVALUATION",
         "MD C&A EVALUATION",
@@ -127,15 +128,22 @@ def join_poe_vists(table1: Table, table2: Table) -> Table:
     return t
 
 
-def filter_combined_kpi(table: Table, app_types: Iterable[str]) -> Table:
-    table = table.filter(table.app_date >= table.intake_date).filter(
-        table.app_type.isin(app_types)
-    )
-    table = table.order_by(table.intake_date).filter(
+def within_intake_window(table: Table) -> Table:
+    return table.filter(table.app_date >= table.intake_date).filter(
         (table.intake_date + ibis.interval(days=7)) >= table.app_date
     )
 
-    return table
+
+def filter_combined_kpi(table: Table, app_types: Iterable[str]) -> Table:
+    table = within_intake_window(table)
+    return table.filter(table.app_type.isin(app_types)).order_by(table.intake_date)
+
+
+def filter_out_combined_kpi(combined: Table, *args: Iterable[str]) -> Table:
+    table = within_intake_window(combined)
+    return table.filter(~table.app_type.isin(list(chain.from_iterable(args)))).order_by(
+        table.intake_date
+    )
 
 
 def monthly_percentage(total: Table, hits: Table) -> Table:
@@ -167,7 +175,8 @@ def main() -> None:
     total: int = cast(int, combined.distinct(on=combined.name).count().execute())
     print(total)
     kpi1_1: Table = filter_combined_kpi(combined, CONST.KPI1_1)
-    kpi1_2: Table = filter_combined_kpi(combined, CONST.KPI1_2)
+    kpi1_2: Table = filter_out_combined_kpi(combined, CONST.KPI1_1, CONST.KPI1_3)
+    kpi1_3: Table = filter_combined_kpi(combined, CONST.KPI1_3)
     print(kpi1_1.count())
     print(kpi1_1)
     print(f"{(cast(int, kpi1_1.count().execute()) / total):0.2%}")
@@ -176,7 +185,11 @@ def main() -> None:
     monthly.to_pandas().to_excel(
         CONST.OUTPUT_DIR / f"percentages {CONST.START_TIME}.xlsx", index=False
     )
-    for label, kpi in (("KPI1_1", kpi1_1), ("KPI1_2", kpi1_2)):
+    for label, kpi in (
+        ("KPI1_1", kpi1_1),
+        ("KPI1_2", kpi1_2),
+        ("KPI1_3", kpi1_3),
+    ):
         kpi.mutate(days_diff=kpi.app_date.delta(kpi.intake_date, unit="day")).to_csv(
             CONST.OUTPUT_DIR / f"{label} {CONST.START_TIME}.tsv", sep="\t"
         )
